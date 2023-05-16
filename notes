@@ -1,0 +1,67 @@
+npm I express & morgan
+
+scripts nodemon app.js --- start server scripts
+
+const express = require('express');
+const app= express();
+
+const PORT = 3000;
+app.listen(PORT< () => {
+  console.log(`server is up and running on port ${PORT}`)
+})
+
+const morgan = require(morgan('dev'))
+app.use(morgan)
+
+create routes/router 
+
+const {router} = require('./api');
+const { client } = require('./db')
+
+app.use('/api', router)
+
+-api
+require express 
+router=express.Router();
+
+router.use('*', (req, res, next) -> {
+  console.log("request came in to api")   
+  res.send('hey you reached the api router')
+  next(); --- important, will get hung up without it
+})-- test router is working
+
+set up route to get list of puppies
+
+router.get('/puppies', (req, res, next) => {
+  res.send('REACHING THE GET PUPPIES ROUTE')
+}) 
+
+
+
+
+module.exports ={ 
+  router
+}
+
+async function getAllPuppies() {
+  try{
+    const {rows} = await client.query(`
+    SELECT * FROM puppies;
+    `)
+    return rows;
+  }catch(error){
+    console.log("error")
+  }
+}
+
+add to exports
+
+pull in {client}
+client.connect() - app.listen? 
+
+
+
+apiRouter.get('/puppies', async(req, res, next) => {
+  const results = await getAllPuppies();
+  res.send(results)
+})
