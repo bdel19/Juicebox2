@@ -77,28 +77,33 @@ async function createPost({ authorId, title, content, tags = [] }) {
 }
 
 async function updatePost(postId, fields = {}) {
+  console.log("postId", postId);
+  console.log("fields", fields);
   const { tags } = fields;
   delete fields.tags;
-
-  if (tags === undefined) {
-    return await getPostById(postId);
-  }
 
   const setString = Object.keys(fields)
     .map((key, index) => `"${key}"=$${index + 1}`)
     .join(", ");
 
+  console.log("setString", setString);
+  console.log(Object.keys(fields));
+
   try {
     if (setString.length > 0) {
       await client.query(
         `
-      UPDATE posts 
-      SET ${setString} 
-      WHERE id=$${setString.length + 1}
-      RETURNING *;
+        UPDATE posts 
+        SET ${setString} 
+        WHERE id=${postId}
+        RETURNING *;
       `,
-        [...Object.values(fields), postId]
+        Object.values(fields)
       );
+    }
+    console.log("passed setString if statement");
+    if (!tags) {
+      return await getPostById(postId);
     }
 
     const tagList = await createTags(tags);
@@ -174,7 +179,7 @@ async function createTags(tagList) {
     return;
   }
 
-  console.log(tagList);
+  console.log("taglist", tagList);
 
   const insertValues = tagList
     .map((name, index) => `$${index + 1}`)
@@ -221,17 +226,19 @@ async function createPostTag(postId, tagId) {
 }
 
 async function addTagsToPost(postId, tagList) {
-  try {
-    const createPostTagPromises = tagList.map((tag) =>
-      createPostTag(postId, tag.id)
-    );
+  if (tagList.length) {
+    try {
+      const createPostTagPromises = tagList.map((tag) =>
+        createPostTag(postId, tag.id)
+      );
 
-    await Promise.all(createPostTagPromises);
+      await Promise.all(createPostTagPromises);
 
-    return await getPostById(postId);
-  } catch (error) {
-    console.log("Error in addTagsToPost");
-    throw error;
+      return await getPostById(postId);
+    } catch (error) {
+      console.log("Error in addTagsToPost");
+      throw error;
+    }
   }
 }
 
@@ -245,6 +252,13 @@ async function getPostById(postId) {
     where id=$1;`,
       [postId]
     );
+
+    if (!post) {
+      throw {
+        name: "PostNotFoundError",
+        message: "Could not find a post with that postId",
+      };
+    }
 
     const { rows: tags } = await client.query(
       `
@@ -306,6 +320,25 @@ async function getAllTags() {
   }
 }
 
+async function getUserByUsername(username) {
+  try {
+    const {
+      rows: [user],
+    } = await client.query(
+      `
+    SELECT * 
+    FROM users
+    WHERE username = $1;`,
+      [username]
+    );
+
+    return user;
+  } catch (error) {
+    console.log("error in getUserByUsername");
+    throw error;
+  }
+}
+
 module.exports = {
   client,
   getAllUsers,
@@ -320,4 +353,6 @@ module.exports = {
   addTagsToPost,
   getPostsByTagName,
   getAllTags,
+  getUserByUsername,
+  getPostById,
 };
